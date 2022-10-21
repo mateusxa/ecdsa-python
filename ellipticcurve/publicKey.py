@@ -1,3 +1,4 @@
+from operator import inv
 from .math import Math
 from .point import Point
 from .curve import secp256k1, getByOid
@@ -12,7 +13,7 @@ class PublicKey:
         self.point = point
         self.curve = curve
 
-    def toString(self, encoded=False):
+    def toString(self, encoded=False, compressed=False):
         baseLength = 2 * self.curve.length()
         xHex = hexFromInt(self.point.x).zfill(baseLength)
         yHex = hexFromInt(self.point.y).zfill(baseLength)
@@ -20,6 +21,12 @@ class PublicKey:
         if encoded:
             return "0004" + string
         return string
+
+    def toCompressed(self):
+        baseLength = 2 * self.curve.length()
+        prefix = "02" if self.point.y % 2 == 0 else "03"
+        xHex = hexFromInt(self.point.x).zfill(baseLength)
+        return prefix + xHex
 
     def toDer(self):
         hexadecimal = encodeConstructed(
@@ -76,6 +83,28 @@ class PublicKey:
         if not Math.multiply(p=p, n=curve.N, N=curve.N, A=curve.A, P=curve.P).isAtInfinity():
             raise Exception("Point ({x},{y}) * {name}.N is not at infinity".format(x=p.x, y=p.y, name=curve.name))
         return publicKey
+        
+    @classmethod
+    def fromCompressed(cls, string, curve=secp256k1):
+        prefix, xString  = string[:2], string[2:]
+        if prefix not in ["02", "03"]:
+            raise Exception("Compressed string should start with 02 or 03")
+
+        is_even = prefix == "02"
+        x = intFromHex(xString)
+
+        alpha = (pow(x, 3, curve.P) + curve.A * x + curve.B) % curve.P
+        try:
+            beta = pow(alpha, (curve.P + 1) // 4, curve.P)
+        except ValueError:
+            raise Exception("Point ({x},{y}) is not valid for curve {name}".format(x=x, y=beta, name=curve.name))
+
+        if is_even == bool(beta & 1):
+            y = curve.P - beta
+        else:
+            y = beta
+
+        return cls(Point(x, y), curve)
 
 
 _ecdsaPublicKeyOid = (1, 2, 840, 10045, 2, 1)
