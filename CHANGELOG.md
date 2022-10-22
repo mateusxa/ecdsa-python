@@ -13,6 +13,9 @@ Given a version number MAJOR.MINOR.PATCH, increment:
 
 
 ## [Unreleased]
+### Added
+- PublicKey.toCompressed() function to generate compressed public key
+- PublicKey.fromString() function to recover a compressed public key
 
 ## [2.1.0] - 2022-09-20
 ### Added
